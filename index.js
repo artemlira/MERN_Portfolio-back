@@ -27,15 +27,8 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 const app = express();
 dotenv.config();
 
-const PORT = process.env.PORT || 3001,
-  DB_USER = process.env.DB_USER,
-  DB_PASSWORD = process.env.DB_PASSWORD,
-  DB_NAME = process.env.DB_NAME;
-
 mongoose
-  .connect(
-    `mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.jcpn6xu.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`,
-  )
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
 
@@ -166,7 +159,7 @@ app.patch(
   SmallProjectController.update,
 );
 
-app.listen(PORT, (err) => {
+app.listen(process.env.PORT || 4444, (err) => {
   if (err) {
     return console.log(err);
   }
