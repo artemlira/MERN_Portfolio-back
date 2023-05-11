@@ -28,6 +28,8 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 const app = express();
 dotenv.config();
 
+const PORT = process.env.PORT || 4444;
+
 mongoose
   .connect(
     'mongodb+srv://admin:wwwwww@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority',
@@ -165,7 +167,7 @@ app.patch(
   SmallProjectController.update,
 );
 
-app.listen(4444, (err) => {
+app.listen(PORT, (err) => {
   if (err) {
     return console.log(err);
   }
