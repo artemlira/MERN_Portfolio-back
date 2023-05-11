@@ -29,7 +29,9 @@ const app = express();
 dotenv.config();
 
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(
+    'mongodb+srv://admin:wwwwww@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority',
+  )
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
 
@@ -163,7 +165,7 @@ app.patch(
   SmallProjectController.update,
 );
 
-app.listen(process.env.PORT || 4444, (err) => {
+app.listen(4444, (err) => {
   if (err) {
     return console.log(err);
   }
