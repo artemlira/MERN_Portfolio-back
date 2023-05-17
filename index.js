@@ -171,5 +171,5 @@ app.listen(PORT, (err) => {
   if (err) {
     return console.log(err);
   }
-  console.log('Server OK');
+  console.log(`Server OK in port ${PORT}`);
 });
