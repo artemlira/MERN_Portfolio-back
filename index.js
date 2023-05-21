@@ -55,7 +55,7 @@ app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static('uploads'));
 
-app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
+app.post('/upload', checkAuth, upload.single('image/jpeg'), (req, res) => {
   res.json({
     url: `/uploads/${req.file.originalname}`,
   });
