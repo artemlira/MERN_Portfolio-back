@@ -37,9 +37,9 @@ export const factCreateValidation = [
 
 export const projectCreateValidation = [
   body('title', 'Введите название проекта').isLength({ min: 3 }).isString(),
-  body('skills', 'Введите массив используемых технологий').isArray(),
+  body('skills', 'Введите массив используемых технологий').isString(),
   body('img', 'Неверная ссылка на изображение').optional().isString(),
-  body('imgWebp', 'Неверная ссылка на изображение webp').optional().isString(),
+  // body('imgWebp', 'Неверная ссылка на изображение webp').optional().isString(),
   body('shortDescriptionUA', 'Введите краткое описание проекта').isLength({ min: 3 }).isString(),
   body('shortDescriptionEN', 'Введите краткое описание проекта').isLength({ min: 3 }).isString(),
   body('fullDescriptionUA', 'Введите полное описание проекта').isLength({ min: 10 }).isString(),

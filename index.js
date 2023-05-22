@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import cors from 'cors';
+import fileUpload from 'express-fileupload';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import {
@@ -28,11 +29,14 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 const app = express();
 dotenv.config();
 
-const PORT = process.env.PORT || 4444;
+const PORT = process.env.PORT || 4444,
+  DB_USER = process.env.DB_USER,
+  DB_PASSWORD = process.env.DB_PASSWORD,
+  DB_NAME = process.env.DB_NAME;
 
 mongoose
   .connect(
-    'mongodb+srv://admin:wwwwww@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority',
+    `mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.jcpn6xu.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`,
   )
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
@@ -53,7 +57,9 @@ const upload = multer({ storage });
 
 app.use(express.json());
 app.use(cors());
-app.use('/uploads', express.static('uploads'));
+app.use(fileUpload());
+app.use(express.static('uploads'));
+// app.use('/uploads', express.static('uploads'));
 
 app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
   res.json({
