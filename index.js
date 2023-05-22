@@ -29,14 +29,11 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 const app = express();
 dotenv.config();
 
-const PORT = process.env.PORT || 4444,
-  DB_USER = process.env.DB_USER,
-  DB_PASSWORD = process.env.DB_PASSWORD,
-  DB_NAME = process.env.DB_NAME;
+const PORT = process.env.PORT || 4444;
 
 mongoose
   .connect(
-    `mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.jcpn6xu.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`,
+    `mongodb+srv://admin:wwwwww@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority`,
   )
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
