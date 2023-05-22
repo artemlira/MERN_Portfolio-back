@@ -12,11 +12,11 @@ const ProjectSchema = new mongoose.Schema(
     },
     img: {
       type: String,
-      required: true,
+      default: '',
     },
     imgWebp: {
       type: String,
-      required: true,
+      default: '',
     },
     shortDescriptionUA: {
       type: String,

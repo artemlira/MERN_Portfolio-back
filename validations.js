@@ -38,8 +38,8 @@ export const factCreateValidation = [
 export const projectCreateValidation = [
   body('title', 'Введите название проекта').isLength({ min: 3 }).isString(),
   body('skills', 'Введите массив используемых технологий').isArray(),
-  body('img', 'Неверная ссылка на изображение').isString(),
-  body('imgWebp', 'Неверная ссылка на изображение webp').isString(),
+  body('img', 'Неверная ссылка на изображение').optional().isURL(),
+  body('imgWebp', 'Неверная ссылка на изображение webp').optional().isURL(),
   body('shortDescriptionUA', 'Введите краткое описание проекта').isLength({ min: 3 }).isString(),
   body('shortDescriptionEN', 'Введите краткое описание проекта').isLength({ min: 3 }).isString(),
   body('fullDescriptionUA', 'Введите полное описание проекта').isLength({ min: 10 }).isString(),
@@ -51,8 +51,8 @@ export const projectCreateValidation = [
 export const smallProjectCreateValidation = [
   body('title', 'Введите название проекта').isLength({ min: 3 }).isString(),
   body('skills', 'Введите массив используемых технологий').isArray(),
-  body('img', 'Неверная ссылка на изображение').isString(),
-  body('imgWebp', 'Неверная ссылка на изображение webp').isString(),
+  body('img', 'Неверная ссылка на изображение').optional().isURL(),
+  body('imgWebp', 'Неверная ссылка на изображение webp').optional().isURL(),
   body('shortDescriptionUA', 'Введите краткое описание проекта').isLength({ min: 3 }).isString(),
   body('shortDescriptionEN', 'Введите краткое описание проекта').isLength({ min: 3 }).isString(),
   body('fullDescriptionUA', 'Введите полное описание проекта').isLength({ min: 10 }).isString(),
