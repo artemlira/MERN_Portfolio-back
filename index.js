@@ -2,7 +2,6 @@ import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import cors from 'cors';
-import fileUpload from 'express-fileupload';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import {
@@ -54,9 +53,7 @@ const upload = multer({ storage });
 
 app.use(express.json());
 app.use(cors());
-app.use(fileUpload());
-app.use(express.static('uploads'));
-// app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('uploads'));
 
 app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
   res.json({

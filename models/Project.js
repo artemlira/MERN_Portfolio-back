@@ -14,10 +14,10 @@ const ProjectSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    // imgWebp: {
-    //   type: String,
-    //   default: '',
-    // },
+    imgWebp: {
+      type: String,
+      default: '',
+    },
     shortDescriptionUA: {
       type: String,
       required: true,
