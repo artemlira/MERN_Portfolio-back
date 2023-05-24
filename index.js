@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
+import path from 'path';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -28,7 +29,7 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 const app = express();
 dotenv.config();
 
-const PORT = process.env.PORT || 4444;
+// const PORT = process.env.PORT || 4444;
 
 mongoose
   .connect(
@@ -54,11 +55,21 @@ const upload = multer({ storage });
 app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static('uploads'));
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
-  res.json({
-    url: `/uploads/${req.file.originalname}`,
-  });
+  try {
+    if (req.file) {
+       res.json({
+         url: `/uploads/${req.file.originalname}`,
+       });
+    }
+  } catch (error) {
+     console.log(error);
+     res.status(500).json({
+       message: 'Не удалось загрузить картинку на сервере',
+     });
+  }
 });
 
 app.post('/auth/login', loginValidation, handleValidationErrors, UserController.login);
@@ -167,9 +178,9 @@ app.patch(
   SmallProjectController.update,
 );
 
-app.listen(PORT, (err) => {
+app.listen(4444, (err) => {
   if (err) {
     return console.log(err);
   }
-  console.log(`Server OK in port ${PORT}`);
+  console.log(`Server OK`);
 });
