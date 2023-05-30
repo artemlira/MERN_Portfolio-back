@@ -94,7 +94,7 @@ app.use('/uploads', express.static('uploads'));
 
 //=====================================
 // Створення маршруту для завантаження файлів
-app.post('/uploads', upload.single('image'), (req, res) => {
+app.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: 'Файл не було завантажено.' });
   }
