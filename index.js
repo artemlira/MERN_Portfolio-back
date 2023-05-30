@@ -40,13 +40,13 @@ mongoose
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
 //===================================
-const conn = mongoose.connection;
-let gfs;
-conn.once('open', () => {
-  // Ініціалізація stream-об'єкта GridFS
-  gfs = Grid(conn.db, mongoose.mongo);
-  gfs.collection('uploads');
-});
+// const conn = mongoose.connection;
+// let gfs;
+// conn.once('open', () => {
+//   // Ініціалізація stream-об'єкта GridFS
+//   gfs = Grid(conn.db, mongoose.mongo);
+//   gfs.collection('uploads');
+// });
 //===================================
 const storage = multer.diskStorage({
   destination: (_, __, cb) => {
@@ -73,11 +73,13 @@ app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
       res.json({
         url: `/uploads/${req.file.originalname}`,
         message: 'Файл успішно завантажено!',
+        req: req,
       });
     } else {
       res.json({
         success: false,
         message: 'Помилка завантаження файлу.',
+        req: req,
       });
     }
   } catch (error) {
