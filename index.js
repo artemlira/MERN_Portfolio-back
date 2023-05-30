@@ -1,11 +1,11 @@
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
-import path from 'path';
+// import path from 'path';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import { Grid } from 'gridfs-stream';
+import Grid from 'gridfs-stream';
 import {
   registerValidation,
   loginValidation,
@@ -40,13 +40,13 @@ mongoose
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
 //===================================
-// const conn = mongoose.connection;
-// let gfs;
-// conn.once('open', () => {
-//   // Ініціалізація stream-об'єкта GridFS
-//   gfs = Grid(conn.db, mongoose.mongo);
-//   gfs.collection('uploads');
-// });
+const conn = mongoose.connection;
+let gfs;
+conn.once('open', () => {
+  // Ініціалізація stream-об'єкта GridFS
+  gfs = Grid(conn.db, mongoose.mongo);
+  gfs.collection('uploads');
+});
 //===================================
 const storage = multer.diskStorage({
   destination: (_, __, cb) => {
