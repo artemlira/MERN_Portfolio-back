@@ -48,17 +48,19 @@ conn.once('open', () => {
   gfs.collection('uploads');
 });
 //===================================
-const storage = multer.diskStorage({
-  destination: (_, __, cb) => {
-    if (!fs.existsSync('uploads')) {
-      fs.mkdirSync('uploads');
-    }
-    cb(null, './uploads');
-  },
-  filename: (_, file, cb) => {
-    cb(null, file.originalname);
-  },
-});
+// const storage = multer.diskStorage({
+//   destination: (_, __, cb) => {
+//     if (!fs.existsSync('uploads')) {
+//       fs.mkdirSync('uploads');
+//     }
+//     cb(null, './uploads');
+//   },
+//   filename: (_, file, cb) => {
+//     cb(null, file.originalname);
+//   },
+// });
+
+const storage = multer.memoryStorage();
 
 const upload = multer({ storage });
 
@@ -67,28 +69,47 @@ app.use(cors());
 app.use('/uploads', express.static('uploads'));
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
-  try {
-    if (req.file) {
-      res.json({
-        url: `/uploads/${req.file.originalname}`,
-        message: 'Файл успішно завантажено!',
-        req: req,
-      });
-    } else {
-      res.json({
-        success: false,
-        message: 'Помилка завантаження файлу.',
-        req: req,
-      });
-    }
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: 'Не удалось загрузить картинку на сервере',
-    });
+// app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
+//   try {
+//     if (req.file) {
+//       res.json({
+//         url: `/uploads/${req.file.originalname}`,
+//         message: 'Файл успішно завантажено!',
+//         req: req,
+//       });
+//     } else {
+//       res.json({
+//         success: false,
+//         message: 'Помилка завантаження файлу.',
+//         req: req,
+//       });
+//     }
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({
+//       message: 'Не удалось загрузить картинку на сервере',
+//     });
+//   }
+// });
+
+//=====================================
+// Створення маршруту для завантаження файлів
+app.post('/uploads', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'Файл не було завантажено.' });
   }
+
+  const filename = req.file.originalname;
+
+  // Створення stream зчитування для завантаження файлу в MongoDB
+  const writestream = gfs.createWriteStream({ filename });
+  writestream.write(req.file.buffer);
+  writestream.end();
+
+  return res.status(200).json({ success: true, message: 'Файл успішно завантажено!' });
 });
+ 
+//=====================================
 
 app.post('/auth/login', loginValidation, handleValidationErrors, UserController.login);
 app.post('/auth/register', registerValidation, handleValidationErrors, UserController.register);
