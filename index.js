@@ -34,6 +34,7 @@ dotenv.config();
 mongoose
   .connect(
     `mongodb+srv://admin:wwwwww@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority`,
+    { useNewUrlParser: true, useUnifiedTopology: true },
   )
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
@@ -60,15 +61,15 @@ app.use('/uploads', express.static('uploads'));
 app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
   try {
     if (req.file) {
-       res.json({
-         url: `/uploads/${req.file.originalname}`,
-       });
+      res.json({
+        url: `/uploads/${req.file.originalname}`,
+      });
     }
   } catch (error) {
-     console.log(error);
-     res.status(500).json({
-       message: 'Не удалось загрузить картинку на сервере',
-     });
+    console.log(error);
+    res.status(500).json({
+      message: 'Не удалось загрузить картинку на сервере',
+    });
   }
 });
 
