@@ -1,11 +1,14 @@
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
-// import path from 'path';
+import path from 'path';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Grid from 'gridfs-stream';
+import GridFsStorage from 'multer-gridfs-storage';
+import bodyParser from 'body-parser';
+import FileModel from './models/File.js';
 import {
   registerValidation,
   loginValidation,
@@ -30,6 +33,11 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 const app = express();
 dotenv.config();
 
+//=====================
+app.use(bodyParser.urlencoded({ extended: true }));
+app.set('view engine', 'ejs');
+//=====================
+
 // const PORT = process.env.PORT || 4444;
 
 mongoose
@@ -39,15 +47,14 @@ mongoose
   )
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
+
 //===================================
 const conn = mongoose.connection;
-let gfs;
-conn.once('open', () => {
-  // Ініціалізація stream-об'єкта GridFS
-  gfs = Grid(conn.db, mongoose.mongo);
-  gfs.collection('uploads');
-});
+conn.on('connected', () => console.log('database is connected successfully'));
+conn.on('disconnected', () => console.log('database is disconnected successfully'));
+conn.on('error', console.error.bind(console, 'connection error:'));
 //===================================
+
 // const storage = multer.diskStorage({
 //   destination: (_, __, cb) => {
 //     if (!fs.existsSync('uploads')) {
@@ -60,9 +67,43 @@ conn.once('open', () => {
 //   },
 // });
 
-const storage = multer.memoryStorage();
+//====================================
+// SET STORAGE
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, 'uploads')
+    },
+    filename: function (req, file, cb) {
+      cb(null, file.fieldname + '-' + Date.now())
+    }
+  })
 
-const upload = multer({ storage });
+//====================================
+
+const upload = multer({ storage: storage });
+
+//===================================
+
+app.post('/uploadphoto', upload.single('image'), (req, res) => {
+  const img = fs.readFileSync(req.file.path);
+  const encode_img = img.toString('base64');
+  const final_img = {
+    contentType: req.file.mimetype,
+    image: new Buffer(encode_img, 'base64'),
+  };
+  FileModel.create(final_img, function (err, result) {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log(result.img.Buffer);
+      console.log('Saved To database');
+      res.contentType(final_img.contentType);
+      res.send(final_img.image);
+    }
+  });
+});
+//===================================
+
 
 app.use(express.json());
 app.use(cors());
@@ -93,22 +134,8 @@ app.use('/uploads', express.static('uploads'));
 // });
 
 //=====================================
-// Створення маршруту для завантаження файлів
-app.post('/upload', upload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'Файл не було завантажено.' });
-  }
 
-  const filename = req.file.originalname;
 
-  // Створення stream зчитування для завантаження файлу в MongoDB
-  const writestream = gfs.createWriteStream({ filename });
-  writestream.write(req.file.buffer);
-  writestream.end();
-
-  return res.status(200).json({ success: true, message: 'Файл успішно завантажено!' });
-});
- 
 //=====================================
 
 app.post('/auth/login', loginValidation, handleValidationErrors, UserController.login);
