@@ -32,6 +32,9 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 
 const app = express();
 dotenv.config();
+app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static('uploads'));
 
 //=====================
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -105,9 +108,7 @@ app.post('/uploadphoto', upload.single('image'), (req, res) => {
 //===================================
 
 
-app.use(express.json());
-app.use(cors());
-app.use('/uploads', express.static('uploads'));
+
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
