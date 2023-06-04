@@ -28,12 +28,14 @@ export const getOne = async (req, res) => {
 };
 
 export const create = async (req, res) => {
+  const { base64 } = req.body;
+  const { base64Webp } = req.body;
   try {
-    const doc = new SmallProjectModel({
+    SmallProjectModel.create({
       title: req.body.title,
       skills: req.body.skills,
-      img: req.body.img,
-      imgWebp: req.body.imgWebp,
+      img: base64,
+      imgWebp: base64Webp,
       shortDescriptionUA: req.body.shortDescriptionUA,
       shortDescriptionEN: req.body.shortDescriptionEN,
       fullDescriptionUA: req.body.fullDescriptionUA,
@@ -43,7 +45,7 @@ export const create = async (req, res) => {
       user: req.userId,
     });
 
-    const project = await doc.save();
+    // const project = await doc.save();
     res.json(project);
   } catch (err) {
     console.log(err);
@@ -74,6 +76,8 @@ export const remove = async (req, res) => {
 export const update = async (req, res) => {
   try {
     const projectId = req.params.id;
+    const { base64 } = req.body;
+    const { base64Webp } = req.body;
     await SmallProjectModel.updateOne(
       {
         _id: projectId,
@@ -81,8 +85,8 @@ export const update = async (req, res) => {
       {
         title: req.body.title,
         skills: req.body.skills,
-        img: req.body.img,
-        imgWebp: req.body.imgWebp,
+        img: base64,
+        imgWebp: base64Webp,
         shortDescriptionUA: req.body.shortDescriptionUA,
         shortDescriptionEN: req.body.shortDescriptionEN,
         fullDescriptionUA: req.body.fullDescriptionUA,

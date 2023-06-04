@@ -1,11 +1,7 @@
 import express from 'express';
-import multer from 'multer';
-import fs from 'fs';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import bodyParser from 'body-parser';
-import FileModel from './models/File.js';
 import {
   registerValidation,
   loginValidation,
@@ -30,88 +26,18 @@ import { handleValidationErrors, checkAuth } from './utils/index.js';
 const app = express();
 dotenv.config();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb' }));
 app.use('/uploads', express.static('uploads'));
-
-//=====================
-app.use(bodyParser.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
-//=====================
-
-// const PORT = process.env.PORT || 4444;
 
 mongoose
   .connect(
     `mongodb+srv://admin:wwwwww@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority`,
-    { useNewUrlParser: true, useUnifiedTopology: true },
+    { useNewUrlParser: true },
   )
   .then(() => console.log('MongoDB OK'))
   .catch((err) => console.log('MongoDB error', err));
-
-//===================================
-const conn = mongoose.connection;
-conn.on('connected', () => console.log('database is connected successfully'));
-conn.on('disconnected', () => console.log('database is disconnected successfully'));
-conn.on('error', console.error.bind(console, 'connection error:'));
-//===================================
-
-// const storage = multer.diskStorage({
-//   destination: (_, __, cb) => {
-//     if (!fs.existsSync('uploads')) {
-//       fs.mkdirSync('uploads');
-//     }
-//     cb(null, './uploads');
-//   },
-//   filename: (_, file, cb) => {
-//     cb(null, file.originalname);
-//   },
-// });
-
-//====================================
-// SET STORAGE
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, 'uploads')
-    },
-    filename: function (req, file, cb) {
-      cb(null, file.fieldname + '-' + Date.now())
-    }
-  })
-
-//====================================
-
-const upload = multer({ storage: storage });
-
-
-// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
-//   try {
-//     if (req.file) {
-//       res.json({
-//         url: `/uploads/${req.file.originalname}`,
-//         message: 'Файл успішно завантажено!',
-//         req: req,
-//       });
-//     } else {
-//       res.json({
-//         success: false,
-//         message: 'Помилка завантаження файлу.',
-//         req: req,
-//       });
-//     }
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).json({
-//       message: 'Не удалось загрузить картинку на сервере',
-//     });
-//   }
-// });
-
-//=====================================
-
-
-//=====================================
 
 app.post('/auth/login', loginValidation, handleValidationErrors, UserController.login);
 app.post('/auth/register', registerValidation, handleValidationErrors, UserController.register);

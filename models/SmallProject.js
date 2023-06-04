@@ -10,14 +10,8 @@ const SmallProjectSchema = new mongoose.Schema(
       type: Array,
       required: true,
     },
-    img: {
-      type: String,
-      default: '',
-    },
-    imgWebp: {
-      type: String,
-      default: '',
-    },
+    img: String,
+    imgWebp: String,
     shortDescriptionUA: {
       type: String,
       required: true,
