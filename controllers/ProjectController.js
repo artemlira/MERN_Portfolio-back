@@ -1,6 +1,4 @@
 import ProjectModel from '../models/Project.js';
-// import path, { dirname } from 'path';
-// import { fileURLToPath } from 'url';
 
 export const getAll = async (req, res) => {
   try {
@@ -82,7 +80,7 @@ export const create = async (req, res) => {
     });
 
     const project = await doc.save();
-    res.json(project);
+    res.send(project);
   } catch (err) {
     console.log(err);
     res.status(500).json({
