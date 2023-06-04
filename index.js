@@ -1,12 +1,9 @@
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
-import path from 'path';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import Grid from 'gridfs-stream';
-import GridFsStorage from 'multer-gridfs-storage';
 import bodyParser from 'body-parser';
 import FileModel from './models/File.js';
 import {
@@ -84,29 +81,6 @@ const storage = multer.diskStorage({
 //====================================
 
 const upload = multer({ storage: storage });
-
-//===================================
-
-app.post('/uploadphoto', upload.single('image'), (req, res) => {
-  const img = fs.readFileSync(req.file.path);
-  const encode_img = img.toString('base64');
-  const final_img = {
-    contentType: req.file.mimetype,
-    image: new Buffer(encode_img, 'base64'),
-  };
-  FileModel.create(final_img, function (err, result) {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log(result.img.Buffer);
-      console.log('Saved To database');
-      res.contentType(final_img.contentType);
-      res.send(final_img.image);
-    }
-  });
-});
-//===================================
-
 
 
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

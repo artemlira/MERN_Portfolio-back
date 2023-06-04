@@ -63,12 +63,15 @@ export const getAll = async (req, res) => {
 // };
 
 export const create = async (req, res) => {
+  const { base64 } = req.body;
+  const { base64Webp } = req.body;
   try {
+    
     const doc = new ProjectModel({
       title: req.body.title,
       skills: req.body.skills,
-      img: req.body.img,
-      imgWebp: req.body.imgWebp,
+      img: base64,
+      imgWebp: base64Webp,
       shortDescriptionUA: req.body.shortDescriptionUA,
       shortDescriptionEN: req.body.shortDescriptionEN,
       fullDescriptionUA: req.body.fullDescriptionUA,
