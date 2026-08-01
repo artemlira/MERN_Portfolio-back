@@ -14,27 +14,27 @@ const ProjectSchema = new mongoose.Schema(
     imgWebp: String,
     shortDescriptionUA: {
       type: String,
-      required: true,
+      default: '',
     },
     shortDescriptionEN: {
       type: String,
-      required: true,
+      default: '',
     },
     fullDescriptionUA: {
       type: String,
-      required: true,
+      default: '',
     },
     fullDescriptionEN: {
       type: String,
-      required: true,
+      default: '',
     },
     git: {
       type: String,
-      required: true,
+      default: '',
     },
     deploy: {
       type: String,
-      required: true,
+      default: '',
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,

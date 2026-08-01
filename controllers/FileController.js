@@ -2,10 +2,10 @@ import FileModel from '../models/File.js';
 
 export const getAll = async (req, res) => {
   try {
-    const facts = await FileModel.find().populate('user').exec();
-    res.json(facts);
+    const files = await FileModel.find().populate('user', 'fullName avatarUrl').exec();
+    res.json(files);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
       message: 'Не удалось получить файлы',
     });
@@ -14,75 +14,96 @@ export const getAll = async (req, res) => {
 
 export const getOne = async (req, res) => {
   try {
-    const factId = req.params.id;
-    const fact = await FactModel.findById({
-      _id: factId,
+    const fileId = req.params.id;
+    const file = await FileModel.findById({
+      _id: fileId,
     });
-    res.json(fact);
+
+    if (!file) {
+      return res.status(404).json({
+        message: 'Файл не знайдено',
+      });
+    }
+
+    res.json(file);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
-      message: 'Не удалось получить ONE факт',
+      message: 'Не удалось получить ONE файл',
     });
   }
 };
 
 export const create = async (req, res) => {
   try {
-    const doc = new FactModel({
-      valueUA: req.body.valueUA,
-      valueEN: req.body.valueEN,
+    const doc = new FileModel({
+      name: req.body.name,
+      img: req.body.img,
       user: req.userId,
     });
 
-    const fact = await doc.save();
-    res.json(fact);
+    const file = await doc.save();
+    res.json(file);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
-      message: 'Не удалось добавить факт',
+      message: 'Не удалось добавить файл',
     });
   }
 };
 
 export const remove = async (req, res) => {
   try {
-    const factId = req.params.id;
+    const fileId = req.params.id;
 
-    await FactModel.findOneAndDelete({
-      _id: factId,
+    const file = await FileModel.findOneAndDelete({
+      _id: fileId,
     });
+
+    if (!file) {
+      return res.status(404).json({
+        message: 'Файл не знайдено',
+      });
+    }
+
     res.json({
-      message: 'Факты успешно удалены',
+      message: 'Файл успешно удален',
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
-      message: 'Не удалось удалить факты',
+      message: 'Не удалось удалить файл',
     });
   }
 };
 
 export const update = async (req, res) => {
   try {
-    const factId = req.params.id;
-    await FactModel.updateOne(
+    const fileId = req.params.id;
+    const result = await FileModel.updateOne(
       {
-        _id: factId,
+        _id: fileId,
       },
       {
-        valueUA: req.body.valueUA,
-        valueEN: req.body.valueEN,
+        name: req.body.name,
+        img: req.body.img,
         user: req.userId,
       },
     );
+
+    if (!result.matchedCount) {
+      return res.status(404).json({
+        message: 'Файл не знайдено',
+      });
+    }
+
     res.json({
-      message: 'Факты успешно обнавлены',
+      message: 'Файл успешно обнавлен',
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
-      message: 'Не удалось обновить факты',
+      message: 'Не удалось обновить файл',
     });
   }
 };

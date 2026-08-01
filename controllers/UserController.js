@@ -1,6 +1,18 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import UserModel from "../models/User.js";
+import { JWT_EXPIRES_IN, JWT_SECRET } from "../config.js";
+
+const signToken = (userId) =>
+  jwt.sign(
+    {
+      _id: userId,
+    },
+    JWT_SECRET,
+    {
+      expiresIn: JWT_EXPIRES_IN,
+    },
+  );
 
 export const register = async (req, res) => {
   try {
@@ -17,12 +29,7 @@ export const register = async (req, res) => {
 
     const user = await doc.save();
 
-    const token = jwt.sign({
-      _id: user._id,
-    }, 'secret123',
-      {
-        expiresIn: '30d',
-      });
+    const token = signToken(user._id);
 
     const { passwordHash, ...userData } = user._doc;
 
@@ -31,7 +38,14 @@ export const register = async (req, res) => {
       token
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
+
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message: 'Користувач з таким email вже існує',
+      });
+    }
+
     res.status(500).json({
       message: 'Не удалось зарегистрироваться'
     });
@@ -40,26 +54,21 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const user = await UserModel.findOne({ email: req.body.email });
+    const user = await UserModel.findOne({ email: req.body.email }).select('+passwordHash');
     if (!user) {
-      return res.status(404).json({
-        message: 'Пользователь не найден'
+      return res.status(401).json({
+        message: 'Невірний email або пароль'
       });
     }
 
     const isValidPass = await bcrypt.compare(req.body.password, user._doc.passwordHash);
     if (!isValidPass) {
-      return res.status(403).json({
-        message: 'Не верный логин или пароль'
+      return res.status(401).json({
+        message: 'Невірний email або пароль'
       });
     }
 
-    const token = jwt.sign({
-      _id: user._id,
-    }, 'secret123',
-      {
-        expiresIn: '30d',
-      });
+    const token = signToken(user._id);
 
     const { passwordHash, ...userData } = user._doc;
 
@@ -69,7 +78,7 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).json({
       message: 'Не удалось авторизоваться'
     });
@@ -90,7 +99,7 @@ export const getMe = async (req, res) => {
 
     res.json(userData);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
       message: 'Нет доступа'
     });

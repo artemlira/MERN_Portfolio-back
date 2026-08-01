@@ -2,10 +2,10 @@ import FactModel from '../models/Fact.js';
 
 export const getAll = async (req, res) => {
   try {
-    const facts = await FactModel.find().populate('user').exec();
+    const facts = await FactModel.find().populate('user', 'fullName avatarUrl').exec();
     res.json(facts);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
       message: 'Не удалось получить факты',
     });
@@ -18,9 +18,16 @@ export const getOne = async (req, res) => {
     const fact = await FactModel.findById({
       _id: factId,
     });
+
+    if (!fact) {
+      return res.status(404).json({
+        message: 'Факт не знайдено',
+      });
+    }
+
     res.json(fact);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
       message: 'Не удалось получить ONE факт',
     });
@@ -38,7 +45,7 @@ export const create = async (req, res) => {
     const fact = await doc.save();
     res.json(fact);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
       message: 'Не удалось добавить факт',
     });
@@ -49,14 +56,21 @@ export const remove = async (req, res) => {
   try {
     const factId = req.params.id;
 
-    await FactModel.findOneAndDelete({
+    const fact = await FactModel.findOneAndDelete({
       _id: factId,
     });
+
+    if (!fact) {
+      return res.status(404).json({
+        message: 'Факт не знайдено',
+      });
+    }
+
     res.json({
       message: 'Факты успешно удалены',
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
       message: 'Не удалось удалить факты',
     });
@@ -66,7 +80,7 @@ export const remove = async (req, res) => {
 export const update = async (req, res) => {
   try {
     const factId = req.params.id;
-    await FactModel.updateOne(
+    const result = await FactModel.updateOne(
       {
         _id: factId,
       },
@@ -76,11 +90,18 @@ export const update = async (req, res) => {
         user: req.userId,
       },
     );
+
+    if (!result.matchedCount) {
+      return res.status(404).json({
+        message: 'Факт не знайдено',
+      });
+    }
+
     res.json({
       message: 'Факты успешно обнавлены',
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
       message: 'Не удалось обновить факты',
     });

@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import {
   registerValidation,
   loginValidation,
@@ -11,6 +12,7 @@ import {
   factCreateValidation,
   projectCreateValidation,
   smallProjectCreateValidation,
+  mongoIdValidation,
 } from './validations.js';
 import {
   UserController,
@@ -22,25 +24,98 @@ import {
   SmallProjectController,
 } from './controllers/index.js';
 import { handleValidationErrors, checkAuth } from './utils/index.js';
+import { CLIENT_ORIGINS, MONGO_URI, PORT } from './config.js';
 
 const app = express();
-dotenv.config();
-app.use(cors());
+let dbConnectionPromise = null;
+
+const connectToDatabase = async () => {
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  if (!dbConnectionPromise) {
+    dbConnectionPromise = mongoose
+      .connect(MONGO_URI)
+      .then(() => console.log('MongoDB OK'))
+      .catch((err) => {
+        dbConnectionPromise = null;
+        throw err;
+      });
+  }
+
+  await dbConnectionPromise;
+};
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || CLIENT_ORIGINS.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(null, false);
+  },
+};
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Забагато спроб авторизації. Спробуйте пізніше.' },
+});
+
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method),
+  message: { message: 'Забагато запитів. Спробуйте пізніше.' },
+});
+
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+);
+app.use(cors(corsOptions));
+app.use(writeLimiter);
 app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use('/uploads', express.static('uploads'));
 app.set('view engine', 'ejs');
 
-mongoose
-  .connect(
-    `mongodb+srv://admin:wwwwww@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority`,
-    { useNewUrlParser: true },
-  )
-  .then(() => console.log('MongoDB OK'))
-  .catch((err) => console.log('MongoDB error', err));
+connectToDatabase().catch((err) => console.error('MongoDB error', err));
 
-app.post('/auth/login', loginValidation, handleValidationErrors, UserController.login);
-app.post('/auth/register', registerValidation, handleValidationErrors, UserController.register);
+app.use(async (_, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (err) {
+    console.error('MongoDB error', err);
+    res.status(500).json({ message: 'Не вдалося підключитися до бази даних' });
+  }
+});
+
+app.get('/health', (_, res) => {
+  res.json({
+    status: 'ok',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+  });
+});
+
+app.post('/auth/login', authLimiter, loginValidation, handleValidationErrors, UserController.login);
+app.post(
+  '/auth/register',
+  authLimiter,
+  registerValidation,
+  handleValidationErrors,
+  UserController.register,
+);
 app.get('/auth/me', checkAuth, UserController.getMe);
 
 app.get('/skills', SkillController.getAll);
@@ -51,11 +126,12 @@ app.post(
   handleValidationErrors,
   SkillController.create,
 );
-app.delete('/skills/:id', checkAuth, SkillController.remove);
-app.get('/skills/:id', checkAuth, SkillController.getOne);
+app.delete('/skills/:id', checkAuth, mongoIdValidation, handleValidationErrors, SkillController.remove);
+app.get('/skills/:id', checkAuth, mongoIdValidation, handleValidationErrors, SkillController.getOne);
 app.patch(
   '/skills/:id',
   checkAuth,
+  mongoIdValidation,
   skillCreateValidation,
   handleValidationErrors,
   SkillController.update,
@@ -69,11 +145,12 @@ app.post(
   handleValidationErrors,
   MediaController.create,
 );
-app.delete('/medias/:id', checkAuth, MediaController.remove);
-app.get('/medias/:id', checkAuth, MediaController.getOne);
+app.delete('/medias/:id', checkAuth, mongoIdValidation, handleValidationErrors, MediaController.remove);
+app.get('/medias/:id', checkAuth, mongoIdValidation, handleValidationErrors, MediaController.getOne);
 app.patch(
   '/medias/:id',
   checkAuth,
+  mongoIdValidation,
   mediaCreateValidation,
   handleValidationErrors,
   MediaController.update,
@@ -87,11 +164,24 @@ app.post(
   handleValidationErrors,
   ContactController.create,
 );
-app.delete('/contacts/:id', checkAuth, ContactController.remove);
-app.get('/contacts/:id', checkAuth, ContactController.getOne);
+app.delete(
+  '/contacts/:id',
+  checkAuth,
+  mongoIdValidation,
+  handleValidationErrors,
+  ContactController.remove,
+);
+app.get(
+  '/contacts/:id',
+  checkAuth,
+  mongoIdValidation,
+  handleValidationErrors,
+  ContactController.getOne,
+);
 app.patch(
   '/contacts/:id',
   checkAuth,
+  mongoIdValidation,
   contactCreateValidation,
   handleValidationErrors,
   ContactController.update,
@@ -99,11 +189,12 @@ app.patch(
 
 app.get('/facts', FactController.getAll);
 app.post('/facts', checkAuth, factCreateValidation, handleValidationErrors, FactController.create);
-app.delete('/facts/:id', checkAuth, FactController.remove);
-app.get('/facts/:id', checkAuth, FactController.getOne);
+app.delete('/facts/:id', checkAuth, mongoIdValidation, handleValidationErrors, FactController.remove);
+app.get('/facts/:id', checkAuth, mongoIdValidation, handleValidationErrors, FactController.getOne);
 app.patch(
   '/facts/:id',
   checkAuth,
+  mongoIdValidation,
   factCreateValidation,
   handleValidationErrors,
   FactController.update,
@@ -117,11 +208,24 @@ app.post(
   handleValidationErrors,
   ProjectController.create,
 );
-app.delete('/projects/:id', checkAuth, ProjectController.remove);
-app.get('/projects/:id', checkAuth, ProjectController.getOne);
+app.delete(
+  '/projects/:id',
+  checkAuth,
+  mongoIdValidation,
+  handleValidationErrors,
+  ProjectController.remove,
+);
+app.get(
+  '/projects/:id',
+  checkAuth,
+  mongoIdValidation,
+  handleValidationErrors,
+  ProjectController.getOne,
+);
 app.patch(
   '/projects/:id',
   checkAuth,
+  mongoIdValidation,
   projectCreateValidation,
   handleValidationErrors,
   ProjectController.update,
@@ -135,19 +239,36 @@ app.post(
   handleValidationErrors,
   SmallProjectController.create,
 );
-app.delete('/small/:id', checkAuth, SmallProjectController.remove);
-app.get('/small/:id', checkAuth, SmallProjectController.getOne);
+app.delete(
+  '/small/:id',
+  checkAuth,
+  mongoIdValidation,
+  handleValidationErrors,
+  SmallProjectController.remove,
+);
+app.get(
+  '/small/:id',
+  checkAuth,
+  mongoIdValidation,
+  handleValidationErrors,
+  SmallProjectController.getOne,
+);
 app.patch(
   '/small/:id',
   checkAuth,
+  mongoIdValidation,
   smallProjectCreateValidation,
   handleValidationErrors,
   SmallProjectController.update,
 );
 
-app.listen(4444, (err) => {
-  if (err) {
-    return console.log(err);
-  }
-  console.log(`Server OK`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, (err) => {
+    if (err) {
+      return console.error(err);
+    }
+    console.log(`Server OK on port ${PORT}`);
+  });
+}
+
+export default app;
