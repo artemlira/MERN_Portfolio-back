@@ -1,285 +1,209 @@
-# MERN Portfolio API
+# Artem Lira Portfolio — Backend API
 
-REST API for the Artem Lira portfolio website. The backend stores portfolio content in MongoDB and provides public read endpoints plus protected admin endpoints for managing projects, skills, contacts, media links, facts, and authentication.
+The Node.js/Express API for [artemlira.com](https://artemlira.com). It serves the portfolio frontend, stores editable content and bookings in MongoDB Atlas, protects admin operations with JWT authentication, sends contact and booking emails, and synchronizes meeting bookings with a dedicated Google Calendar to generate Google Meet links.
 
-Repository: [artemlira/MERN_Portfolio-back](https://github.com/artemlira/MERN_Portfolio-back)
+| | |
+| --- | --- |
+| Production website | [artemlira.com](https://artemlira.com) |
+| Backend repository | [artemlira/MERN_Portfolio-back](https://github.com/artemlira/MERN_Portfolio-back) |
+| Frontend repository | [artemlira/React-Portfolio_multipage](https://github.com/artemlira/React-Portfolio_multipage) |
+| Frontend README | [Frontend architecture and UI](https://github.com/artemlira/React-Portfolio_multipage#readme) |
+| Production hosting | Hostinger Node.js application, connected to MongoDB Atlas and the dedicated `Portfolio bookings` Google Calendar |
 
-Production API: [https://mern-portfolio-back.vercel.app](https://mern-portfolio-back.vercel.app)
+The browser never connects directly to MongoDB or Google APIs. The React app calls this API over HTTPS; this backend owns validation, authorization, persistence, email delivery, and Calendar operations.
 
-Health check: [https://mern-portfolio-back.vercel.app/health](https://mern-portfolio-back.vercel.app/health)
+## Screenshots
 
-Frontend website: [https://artem-lira.netlify.app](https://artem-lira.netlify.app)
+The booking UI is served by the companion frontend and demonstrates the API-backed booking workflow. The Actions view shows the backend repository's automated CI runs. Captured on October 18, 2026.
 
-Frontend repository: [artemlira/React-Portfolio_multipage](https://github.com/artemlira/React-Portfolio_multipage)
+<p align="center"><img src="docs/images/booking-calendar.png" alt="Portfolio booking calendar showing available meeting dates, slots, and timezone" width="820"></p>
+<p align="center"><em>The frontend asks this API for availability and submits the selected slot for validation and booking.</em></p>
 
-## Overview
+<p align="center"><img src="docs/images/admin-login.png" alt="Portfolio owner login form that gates protected management tools" width="820"></p>
+<p align="center"><em>The companion frontend authenticates the owner before exposing protected API operations.</em></p>
 
-This service is an Express and MongoDB API used by a React portfolio frontend. Public endpoints return portfolio content, while authenticated routes allow the portfolio owner to create, update, and delete content from the admin UI.
+<p align="center"><img src="docs/images/github-actions-api.png" alt="GitHub Actions API CI workflow runs, including successful pull request and main branch checks" width="820"></p>
+<p align="center"><em>Backend CI checks pull requests and pushes to the repository's <code>master</code> branch; deployment is handled separately by the Hostinger setup.</em></p>
 
-The API supports Vercel serverless deployment and a persistent Node.js process on Hostinger.
+## System architecture
 
-## Features
+```mermaid
+flowchart LR
+  Browser[React + Vite frontend\nartemlira.com] -->|JSON REST API + JWT| API[Express API\nHostinger Node.js]
+  API --> DB[(MongoDB Atlas\nportfolio database)]
+  API -->|SMTP| Email[Portfolio mailbox]
+  API -->|free/busy + create/delete event| Calendar[Google Calendar\nPortfolio bookings]
+  Calendar -->|conferenceData| Meet[Unique Google Meet URL]
+  API -->|Meet link + response link| Browser
+```
 
-- JWT authentication
-- Password hashing with bcrypt
-- MongoDB persistence via Mongoose
-- CRUD endpoints for portfolio resources
-- Protected write routes
-- Request validation with express-validator
-- MongoDB id validation for parameterized routes
-- CORS allowlist for the production frontend and local development
-- Security headers via Helmet
-- Rate limiting for authentication and write requests
-- Self-managed meeting bookings with configurable weekly availability
-- SMTP email delivery for contact form submissions and booking notifications
-- Health endpoint for deployment checks
-- Environment-based configuration
+## Responsibilities and features
 
-## Tech Stack
+- **Portfolio data API:** public read endpoints and authenticated create/update/delete operations for projects, small projects, skills, facts, contact details, and social/media links.
+- **Admin authentication:** validates credentials, hashes passwords with bcrypt, issues JWTs, and protects writes and booking-management endpoints.
+- **MongoDB persistence:** Mongoose models and schemas for portfolio resources, users, and bookings; MongoDB Atlas is the production data store.
+- **Booking availability:** derives time slots from a configurable weekly schedule and timezone; applies a minimum notice and booking-window limit; excludes existing database bookings and Google Calendar busy periods.
+- **Google Calendar and Meet:** creates one event per confirmed booking on the configured calendar, requests a Google Meet conference, waits for the generated URL, and deletes the event when the booking is cancelled.
+- **Localized SMTP emails:** sends contact messages to the configured inbox; booking notifications go to the owner and visitor, with the visitor email localized according to the language used on the site.
+- **Attendee response flow:** creates a random response token, stores only its hash, accepts a confirmed/declined answer until the meeting begins, and exposes the answer to the protected booking manager.
+- **Request and platform safeguards:** CORS allowlist, Helmet headers, JSON/body size limits, express-validator rules, MongoDB ID validation, and rate limits on login, registration, contact, and write requests.
+- **Operational endpoint:** `/health` reports API status and whether MongoDB is connected.
 
-- Node.js
-- Express
-- MongoDB Atlas
-- Mongoose
-- JSON Web Tokens
-- bcrypt
-- express-validator
-- cors
-- helmet
-- express-rate-limit
-- dotenv
-- Vercel
+## Booking lifecycle
 
-## Project Structure
+1. The frontend requests booking settings and calendar availability. The backend generates slots in `BOOKING_TIMEZONE`, checks them against existing MongoDB bookings, and queries free/busy only on the calendar identified by `GOOGLE_CALENDAR_ID`.
+2. When the visitor submits a slot, the backend validates name, email, note, and timestamp, then rechecks that the slot is still available. This prevents stale calendar UI from booking a time that has since been taken. A unique index on the booking start time is a final concurrency guard.
+3. The API creates a MongoDB booking with an unpredictable confirmation token whose SHA-256 hash is stored. It inserts a generic `Portfolio meeting` event into the shared calendar and asks Google to create a Meet conference. The API polls the event until Google returns the Meet URL.
+4. Only after the calendar event and Meet URL have been saved does the API respond successfully. If calendar creation or Meet generation fails, it removes the partial event/booking and returns an error; it does not claim that an incomplete meeting was booked.
+5. If SMTP is configured, Nodemailer sends an owner notification and a visitor confirmation. The visitor's message includes the Meet URL, the date and time formatted in the site language and configured timezone, and the link to confirm or decline. The owner email includes the visitor details and current attendance state. The contact form also sends a localized message directly to the configured inbox.
+6. The response endpoint hashes the submitted token and finds the matching booking. It accepts `confirmed` or `declined` before the meeting start, saves the response and timestamp, and will not let a later request change an already-recorded choice. The frontend renders a localized response page; the admin booking page shows the result.
+7. On cancellation, the authenticated admin endpoint deletes the associated Google Calendar event first and then the booking record. If email delivery fails after the booking is safely stored, the booking remains valid and the API reports `notificationSent: false` so the frontend can show a delivery warning.
+
+Calendar events use a generic title/description and do not copy the visitor's name, email, or note into Google Calendar. The service account should be shared only on the `Portfolio bookings` calendar. The integration uses Calendar free/busy and event operations for that calendar; it does not need access to the owner's personal calendar or Google Meet accounts separately.
+
+## Frontend integration and API contract
+
+The paired [React/Vite frontend](https://github.com/artemlira/React-Portfolio_multipage) uses Axios for API requests, Redux Toolkit for resource/auth state, React Router for routes, and `VITE_API_URL` to select the API origin. It submits the selected site locale with contact and booking requests so outbound mail follows the visitor's language.
+
+### Health and authentication
 
 ```text
-server/
-  config.js             Environment-based application config
-  index.js              Express app, middleware, routes, Vercel export
-  hostinger.js          Persistent HTTP server entry point for Hostinger
-  controllers/          Route handlers
-  models/               Mongoose schemas
-  utils/                Auth and validation helpers
-  validations.js        Request validation rules
-  vercel.json           Vercel routing config
-  .env.example          Required environment variable example
+GET  /health
+POST /auth/login
+POST /auth/register
+GET  /auth/me                 Authorization: Bearer <JWT>
 ```
 
-## Environment Variables
+### Portfolio reads and management
 
-Create a local `.env` file from `.env.example`:
+All listed collection routes use `GET` for public reads. `POST`, `PATCH`, and `DELETE` require a valid JWT.
 
-```bash
-cp .env.example .env
-```
+| Resource | Routes |
+| --- | --- |
+| Projects | `GET/POST /projects`, `GET/PATCH/DELETE /projects/:id` |
+| Small projects | `GET/POST /small`, `GET/PATCH/DELETE /small/:id` |
+| Skills | `GET/POST /skills`, `GET/PATCH/DELETE /skills/:id` |
+| Facts | `GET/POST /facts`, `GET/PATCH/DELETE /facts/:id` |
+| Contacts | `GET/POST /contacts`, `GET/PATCH/DELETE /contacts/:id` |
+| Media/social links | `GET/POST /medias`, `GET/PATCH/DELETE /medias/:id` |
 
-Required variables:
-
-```env
-MONGO_URI=mongodb+srv://user:password@cluster0.example.mongodb.net/portfolio?retryWrites=true&w=majority
-JWT_SECRET=replace-with-a-long-random-secret
-JWT_EXPIRES_IN=30d
-CLIENT_ORIGINS=https://artem-lira.netlify.app,http://localhost:5173,http://127.0.0.1:5173
-PORT=4444
-SMTP_HOST=smtp.hostinger.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=your-mailbox@your-domain.com
-SMTP_PASS=your-mailbox-password
-MAIL_FROM=your-mailbox@your-domain.com
-CONTACT_TO_EMAIL=your-email@example.com
-```
-
-`MONGO_URI` must include the database name. For this project the production database is `portfolio`:
-
-```env
-mongodb+srv://USER:PASSWORD@cluster0.jcpn6xu.mongodb.net/portfolio?retryWrites=true&w=majority
-```
-
-Alternative MongoDB configuration is also supported:
-
-```env
-DB_USER=your-db-user
-DB_PASSWORD=your-db-password
-DB_NAME=portfolio
-```
-
-Do not commit real `.env` files or secrets.
-
-## Getting Started
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run the local development server:
-
-```bash
-npm run dev
-```
-
-The API will run on:
+The visitor contact form is separate from editable portfolio contact details:
 
 ```text
-http://localhost:4444
+POST /contact                Public, rate limited; submits an email to the owner
 ```
 
-Run the production entry locally:
-
-```bash
-npm start
-```
-
-`npm start` runs the persistent Hostinger server. Vercel continues to use `index.js` through `vercel.json`.
-
-## Hostinger Deployment
-
-Connect this repository to Hostinger after the changes are merged into `master`. Use the repository root as the app directory, `npm install` as the install command, and `npm start` as the start command. No build command is needed for the API. Hostinger can redeploy automatically after new commits reach the connected branch.
-
-Set `MONGO_URI`, `JWT_SECRET`, and `CLIENT_ORIGINS` in Hostinger's environment variables. Add SMTP variables after creating a mailbox and configuring the domain's mail DNS records. Keep credentials out of Git; `.env.example` contains placeholders.
-
-Hostinger Email's documented SMTP defaults are `smtp.hostinger.com`, port `465`, SSL. Port `587` can be used with STARTTLS by setting `SMTP_SECURE=false`. Confirm the exact values under Emails → Manage → Connect Apps & Devices in hPanel.
-
-## API Endpoints
-
-### Health
-
-```text
-GET /health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok",
-  "database": "connected"
-}
-```
-
-### Booking
+### Bookings
 
 ```text
 GET    /bookings/config
+GET    /bookings/availability?month=YYYY-MM
 GET    /bookings/availability?date=YYYY-MM-DD
-POST   /bookings
-POST   /bookings/respond         (public, confirmation token required)
-GET    /bookings                 (authenticated)
-DELETE /bookings/:id             (authenticated)
+POST   /bookings             Public booking request
+POST   /bookings/respond     Public response token + confirmed/declined answer
+GET    /bookings             Authenticated admin list
+DELETE /bookings/:id         Authenticated cancellation and Calendar cleanup
 ```
 
-See [BOOKING_SETUP.md](./BOOKING_SETUP.md) for schedule environment variables and local setup.
+See [BOOKING_SETUP.md](./BOOKING_SETUP.md) for the booking schedule, Google Cloud service account, Calendar sharing, and Hostinger configuration steps.
 
-### Authentication
+## Technology
+
+| Area | Technologies |
+| --- | --- |
+| Runtime and server | Node.js (20+), JavaScript ES modules, Express 4 |
+| Data layer | MongoDB Atlas, Mongoose 7 |
+| Identity | JSON Web Tokens, bcrypt |
+| Input validation | express-validator, custom MongoDB ID validation and error middleware |
+| Security and traffic controls | Helmet, CORS, express-rate-limit, Express body-size limits |
+| Mail | Nodemailer, configurable SMTP |
+| Calendar | Google Calendar API via `googleapis`, service-account credentials |
+| Configuration | dotenv and environment-based settings |
+| CI | GitHub Actions, Node.js 22, npm |
+| Production process | `hostinger.js` persistent HTTP server on Hostinger |
+
+## Repository structure
 
 ```text
-POST /auth/login
-POST /auth/register
-GET  /auth/me
+config.js                   Environment variables and booking defaults
+index.js                    Express app, middleware, MongoDB connection, REST routes
+hostinger.js                Persistent HTTP server entry point for Hostinger
+controllers/                Auth, bookings, contacts, facts, media, projects, skills
+models/                     Mongoose schemas, including Booking and User
+utils/checkAuth.js          JWT middleware for protected endpoints
+utils/email.js              Localized contact and booking email delivery
+utils/googleCalendar.js     Free/busy lookup, event creation, Meet polling and deletion
+utils/                      Shared auth/validation response helpers
+validations.js              express-validator request schemas
+uploads/                    Existing image files served from the API's /uploads path
+.env.example                Safe environment-variable template (placeholders only)
+BOOKING_SETUP.md            Booking and Google Calendar operations guide
+.github/workflows/ci.yml    Backend CI checks
 ```
 
-`/auth/me` requires an authorization token.
+Portfolio resources are stored in MongoDB collections with one Mongoose model/controller per resource. Bookings have a unique `startAt`, Calendar event ID and Meet URL, attendee response fields, and a non-public confirmation-token hash. User password hashes are excluded from ordinary model reads.
 
-### Portfolio Content
+## Local development
 
-Public read endpoints:
-
-```text
-GET /projects
-GET /small
-GET /skills
-GET /contacts
-GET /medias
-GET /facts
-```
-
-Protected admin endpoints:
-
-```text
-POST   /projects
-GET    /projects/:id
-PATCH  /projects/:id
-DELETE /projects/:id
-
-POST   /small
-GET    /small/:id
-PATCH  /small/:id
-DELETE /small/:id
-
-POST   /skills
-GET    /skills/:id
-PATCH  /skills/:id
-DELETE /skills/:id
-
-POST   /contacts
-GET    /contacts/:id
-PATCH  /contacts/:id
-DELETE /contacts/:id
-
-POST   /medias
-GET    /medias/:id
-PATCH  /medias/:id
-DELETE /medias/:id
-
-POST   /facts
-GET    /facts/:id
-PATCH  /facts/:id
-DELETE /facts/:id
-```
-
-## Authentication Notes
-
-Authenticated requests must include the JWT token in the `Authorization` header.
-
-If `JWT_SECRET` changes, all existing tokens become invalid and users must log in again.
-
-## Deployment
-
-The backend is deployed on Vercel.
-
-Required Vercel environment variables:
-
-```env
-MONGO_URI=...
-JWT_SECRET=...
-JWT_EXPIRES_IN=30d
-CLIENT_ORIGINS=https://artem-lira.netlify.app
-```
-
-After changing environment variables, redeploy the project. Existing deployments do not automatically pick up new variable values.
-
-The root route `/` is not a website page. Seeing `Cannot GET /` is expected. Use `/health` to verify the API status.
-
-## Quality Checks
-
-Before deployment, run:
+Use Node.js 20 or newer (Node.js 22 is used in GitHub Actions):
 
 ```bash
-npm audit --audit-level=moderate
+npm ci
+cp .env.example .env
+# Fill local-only credentials in .env
+npm run dev
 ```
 
-For a quick syntax check:
+The local API listens on `http://localhost:4444` by default. The frontend should run separately and point `VITE_API_URL` to this origin. `npm start` runs the same persistent Hostinger entry point locally.
+
+Useful scripts:
 
 ```bash
-for file in index.js config.js validations.js controllers/*.js models/*.js utils/*.js; do node --check "$file" || exit 1; done
+npm run dev       # nodemon index.js
+npm start         # node hostinger.js
+npm run check     # Node syntax checks for the API entry points and critical modules
 ```
 
-Current dependency audit passes with no moderate-or-higher npm vulnerabilities.
+## Environment configuration
 
-## Security Notes
+Copy `.env.example` to a private local `.env` or enter the variables in Hostinger hPanel. The example file contains placeholders, not credentials.
 
-- Real secrets are loaded from environment variables only.
-- `passwordHash` is excluded from default user queries.
-- CORS is restricted to configured origins.
-- Write requests and auth requests are rate limited.
-- Helmet applies standard HTTP security headers.
-- MongoDB object ids are validated before controller execution.
+| Variable | Purpose |
+| --- | --- |
+| `MONGODB_URI` or `MONGO_URI` | MongoDB Atlas connection URI including the `portfolio` database name. `DB_USER`, `DB_PASSWORD`, and `DB_NAME` are also supported as an alternative. |
+| `JWT_SECRET` | Long random secret used to sign authentication tokens; required in production. |
+| `JWT_EXPIRES_IN` | JWT lifetime; defaults to `30d`. |
+| `CLIENT_ORIGINS` | Comma-separated allowed frontend origins; include `https://artemlira.com` and `https://www.artemlira.com` as needed. |
+| `PORT` | Hostinger-provided listening port; defaults to `4444` for local use. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | SMTP server and TLS settings. |
+| `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Sender mailbox credentials and From address. |
+| `CONTACT_TO_EMAIL` | Inbox for contact submissions and owner booking alerts. |
+| `PUBLIC_SITE_URL` | Public frontend origin used in attendee response links; defaults to `https://artemlira.com`. |
+| `GOOGLE_CALENDAR_ID` | ID shown in settings for the dedicated booking calendar. |
+| `GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` | Complete service-account JSON credentials stored as a private Hostinger variable. |
+| `BOOKING_TIMEZONE` | IANA timezone for slot generation and email formatting; defaults to `Europe/Kyiv`. |
+| `BOOKING_DURATION_MINUTES` | Meeting length; defaults to 30 minutes. |
+| `BOOKING_MINIMUM_NOTICE_HOURS` | Minimum booking lead time; defaults to 24 hours. |
+| `BOOKING_WINDOW_DAYS` | How far into the future visitors can book; defaults to 14 days. |
+| `BOOKING_WEEKLY_HOURS` | JSON weekday-to-opening-hours map; see `.env.example` and `BOOKING_SETUP.md`. |
 
-## Future Improvements
+Never put production URIs, SMTP passwords, JWT secrets, or the Google service-account JSON in GitHub, frontend variables, or support messages. The Google Calendar private key belongs only in the backend's secret environment.
 
-- Move image storage from MongoDB base64 strings to Cloudinary, S3, Vercel Blob, or another object storage service.
-- Add automated integration tests for authenticated CRUD routes.
-- Add request logging with a production-friendly logger.
-- Add role-based access control if more admin users are introduced.
+## Hostinger hosting, CI, and delivery
+
+The production backend is a long-running Node.js app on Hostinger, not a browser-only service. Configure the Hostinger Node.js app to use the repository root, install dependencies with `npm ci` (or Hostinger's equivalent `npm install`), and start with `npm start`, which launches `hostinger.js` and binds to `0.0.0.0`. Configure all production environment variables in hPanel, including the migrated Atlas URI, mail settings, and Calendar credentials. No frontend assets are built by this backend.
+
+The GitHub Actions workflow `.github/workflows/ci.yml` is **CI**: it runs for pull requests targeting `master` and pushes to `master`, uses Node.js 22, runs `npm ci`, then `npm run check`. The current check script validates JavaScript syntax for the app entry points and selected critical modules; it is not a unit/integration test suite and does not build or deploy the service.
+
+The production delivery path is PR → successful API CI → merge to the deployment branch → Hostinger's connected Git deployment restarts/redeploys the Node.js app when that integration is enabled. GitHub Actions itself does not upload or restart the Hostinger application. Verify the source repository/branch and auto-deploy setting in hPanel if a merged commit does not appear in the running API.
+
+The repository also contains a `vercel.json` compatibility entry point, but the production deployment documented for this portfolio is Hostinger (`npm start` → `hostinger.js`). The React frontend must be built separately and configured with the actual public URL of this Hostinger API using `VITE_API_URL`.
+
+## Security and production considerations
+
+- Protected writes require a valid JWT and the API also validates the request body; client-side route guards alone are not trusted.
+- The current implementation has public `/auth/register` and no role-based authorization. Restrict registration or implement an administrator role before allowing general public sign-ups; otherwise any new account may be able to call protected content-management endpoints.
+- Set a unique, high-entropy `JWT_SECRET` in production. Changing it invalidates all active tokens.
+- Keep the service account shared only with the booking calendar, not the personal calendar. Rotate/revoke a key if it has ever been exposed.
+- `CLIENT_ORIGINS` should contain only the deployed portfolio origins and explicitly needed local development origins.
+- `npm run check` covers syntax, not behavior. Add dedicated API tests if the project grows or the booking contract changes.
