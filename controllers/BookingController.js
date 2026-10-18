@@ -1,6 +1,12 @@
 import BookingModel from '../models/Booking.js';
 import { isEmailConfigured, sendBookingNotifications } from '../utils/email.js';
 import {
+  createCalendarBooking,
+  deleteCalendarBooking,
+  getCalendarBusyPeriods,
+  isGoogleCalendarConfigured,
+} from '../utils/googleCalendar.js';
+import {
   BOOKING_DURATION_MINUTES as durationMinutes,
   BOOKING_MINIMUM_NOTICE_HOURS as minimumNoticeHours,
   BOOKING_TIMEZONE as timezone,
@@ -47,7 +53,7 @@ const getDayOfWeek = (dateString) => {
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 };
 
-const getSlotsForDate = async (dateString, knownBookedStarts = null) => {
+const getSlotsForDate = async (dateString, knownBookedStarts = null, knownBusyPeriods = null) => {
   const hours = weeklyHours[getDayOfWeek(dateString)];
   if (
     !Array.isArray(hours) ||
@@ -79,7 +85,13 @@ const getSlotsForDate = async (dateString, knownBookedStarts = null) => {
     (await BookingModel.find({ startAt: { $gte: startAt, $lte: endAt } }).select('startAt').lean())
       .map((booking) => new Date(booking.startAt).toISOString()),
   );
-  return slots.filter((slot) => !bookedStarts.has(slot.startAt));
+  const busyPeriods = knownBusyPeriods || await getCalendarBusyPeriods(startAt, endAt, timezone);
+  return slots.filter((slot) => {
+    if (bookedStarts.has(slot.startAt)) return false;
+    const slotStart = Date.parse(slot.startAt);
+    const slotEnd = Date.parse(slot.endAt);
+    return !busyPeriods.some(({ start, end }) => Date.parse(start) < slotEnd && Date.parse(end) > slotStart);
+  });
 };
 
 const isValidDateString = (value) => {
@@ -117,13 +129,14 @@ export const getAvailability = async (req, res) => {
       const monthEnd = new Date(Date.UTC(year, monthNumber, 2));
       const booked = await BookingModel.find({ startAt: { $gte: monthStart, $lt: monthEnd } }).select('startAt').lean();
       const bookedStarts = new Set(booked.map((booking) => new Date(booking.startAt).toISOString()));
+      const busyPeriods = await getCalendarBusyPeriods(monthStart, monthEnd, timezone);
       const days = [];
       for (const item of dayDates) {
         const isBookable = item >= todayDate && item <= lastBookableDate;
         days.push({
           date: item,
           isBookable,
-          slots: isBookable ? await getSlotsForDate(item, bookedStarts) : [],
+          slots: isBookable ? await getSlotsForDate(item, bookedStarts, busyPeriods) : [],
         });
       }
       return res.json({ month, timezone, durationMinutes, bookingWindowDays, days });
@@ -180,6 +193,29 @@ export const create = async (req, res) => {
       endAt: new Date(slot.endAt),
       timezone,
     });
+    let calendarEventId = null;
+    try {
+      if (isGoogleCalendarConfigured()) {
+        calendarEventId = await createCalendarBooking({ startAt, endAt: new Date(slot.endAt), timezone });
+        booking.googleCalendarEventId = calendarEventId;
+        await booking.save();
+      }
+    } catch (calendarError) {
+      if (calendarEventId) {
+        try {
+          await deleteCalendarBooking(calendarEventId);
+        } catch (cleanupError) {
+          console.error('Calendar event cleanup failed after booking error', cleanupError);
+        }
+      }
+      try {
+        await BookingModel.deleteOne({ _id: booking._id });
+      } catch (cleanupError) {
+        console.error('Booking cleanup failed after Calendar sync error', cleanupError);
+      }
+      console.error('Google Calendar booking sync failed', calendarError);
+      return res.status(503).json({ message: 'Не вдалося синхронізувати бронювання з календарем. Спробуйте ще раз.' });
+    }
     let notificationSent = false;
     if (isEmailConfigured()) {
       try {
@@ -215,11 +251,15 @@ export const getAll = async (_req, res) => {
 
 export const remove = async (req, res) => {
   try {
-    const booking = await BookingModel.findByIdAndDelete(req.params.id);
+    const booking = await BookingModel.findById(req.params.id);
     if (!booking) return res.status(404).json({ message: 'Бронювання не знайдено.' });
+    if (booking.googleCalendarEventId) {
+      await deleteCalendarBooking(booking.googleCalendarEventId);
+    }
+    await BookingModel.deleteOne({ _id: booking._id });
     res.json({ message: 'Бронювання скасовано.' });
   } catch (error) {
     console.error('Booking cancellation failed', error);
-    res.status(500).json({ message: 'Не вдалося скасувати бронювання.' });
+    res.status(502).json({ message: 'Не вдалося скасувати бронювання в календарі. Спробуйте ще раз.' });
   }
 };
