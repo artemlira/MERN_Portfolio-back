@@ -12,6 +12,7 @@ export const submit = async (req, res) => {
       email: req.body.email.trim(),
       title: req.body.title.trim(),
       message: req.body.message.trim(),
+      locale: req.body.locale,
     });
     return res.status(202).json({ message: 'Повідомлення надіслано.' });
   } catch (error) {

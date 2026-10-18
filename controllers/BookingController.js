@@ -219,7 +219,7 @@ export const create = async (req, res) => {
     let notificationSent = false;
     if (isEmailConfigured()) {
       try {
-        await sendBookingNotifications({ name, email, note, startAt, timezone });
+        await sendBookingNotifications({ name, email, note, startAt, timezone, locale: req.body.locale });
         notificationSent = true;
       } catch (notificationError) {
         console.error('Booking email delivery failed', notificationError);
