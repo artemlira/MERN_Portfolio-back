@@ -8,6 +8,7 @@ const BookingSchema = new mongoose.Schema(
     startAt: { type: Date, required: true, unique: true },
     endAt: { type: Date, required: true },
     timezone: { type: String, required: true },
+    googleCalendarEventId: { type: String, default: null },
   },
   { timestamps: true },
 );

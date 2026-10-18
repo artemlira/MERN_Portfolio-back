@@ -3,7 +3,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const DEFAULT_CLIENT_ORIGINS = [
-  'https://artem-lira.netlify.app',
+  'https://artemlira.com',
+  'https://www.artemlira.com',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5174',
@@ -89,6 +90,8 @@ export const SMTP_USER = process.env.SMTP_USER || '';
 export const SMTP_PASS = process.env.SMTP_PASS || '';
 export const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER;
 export const CONTACT_TO_EMAIL = process.env.CONTACT_TO_EMAIL || '';
+export const GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON = process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON || '';
+export const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || '';
 
 if (!MONGO_URI) {
   throw new Error('MONGODB_URI, MONGO_URI, or DB_USER, DB_PASSWORD and DB_NAME environment variables are required');
