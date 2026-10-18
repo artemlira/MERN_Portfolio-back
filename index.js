@@ -280,8 +280,8 @@ app.patch(
   SmallProjectController.update,
 );
 
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, (err) => {
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, '0.0.0.0', (err) => {
     if (err) {
       return console.error(err);
     }
