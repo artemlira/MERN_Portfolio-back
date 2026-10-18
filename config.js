@@ -49,8 +49,9 @@ const getBookingWeeklyHours = () => {
 };
 
 const getMongoUri = () => {
-  if (process.env.MONGO_URI) {
-    return process.env.MONGO_URI;
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (mongoUri) {
+    return mongoUri;
   }
 
   const { DB_USER, DB_PASSWORD, DB_NAME } = process.env;
@@ -90,7 +91,7 @@ export const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER;
 export const CONTACT_TO_EMAIL = process.env.CONTACT_TO_EMAIL || '';
 
 if (!MONGO_URI) {
-  throw new Error('MONGO_URI or DB_USER, DB_PASSWORD and DB_NAME environment variables are required');
+  throw new Error('MONGODB_URI, MONGO_URI, or DB_USER, DB_PASSWORD and DB_NAME environment variables are required');
 }
 
 if (!JWT_SECRET) {
