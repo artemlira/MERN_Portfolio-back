@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import {
   CONTACT_TO_EMAIL,
   MAIL_FROM,
+  PUBLIC_SITE_URL,
   SMTP_HOST,
   SMTP_PASS,
   SMTP_PORT,
@@ -49,7 +50,7 @@ export const sendContactMessage = ({ name, email, title, message, locale }) => {
   });
 };
 
-export const sendBookingNotifications = async ({ name, email, note, startAt, timezone, locale }) => {
+export const sendBookingNotifications = async ({ name, email, note, startAt, timezone, locale, meetUrl, responseToken }) => {
   const emailLocale = getEmailLocale(locale);
   const isUkrainian = emailLocale === 'uk-UA';
   const meetingTime = new Intl.DateTimeFormat(emailLocale, {
@@ -66,9 +67,12 @@ export const sendBookingNotifications = async ({ name, email, note, startAt, tim
     `${isUkrainian ? 'Ім’я' : 'Name'}: ${name}`,
     `Email: ${email}`,
     `${isUkrainian ? 'Зустріч' : 'Meeting'}: ${meetingTime}`,
+    `Google Meet: ${meetUrl}`,
+    `${isUkrainian ? 'Відповідь учасника' : 'Attendee response'}: ${isUkrainian ? 'Очікується' : 'Pending'}`,
     note ? `${isUkrainian ? 'Примітка' : 'Note'}: ${note}` : '',
   ].filter(Boolean).join('\n');
   const mailer = getTransporter();
+  const responseUrl = `${PUBLIC_SITE_URL}/booking/respond?token=${encodeURIComponent(responseToken)}&locale=${encodeURIComponent(emailLocale)}`;
 
   await Promise.all([
     mailer.sendMail({
@@ -83,8 +87,8 @@ export const sendBookingNotifications = async ({ name, email, note, startAt, tim
       to: email,
       subject: isUkrainian ? 'Вашу зустріч заброньовано' : 'Your portfolio meeting is booked',
       text: isUkrainian
-        ? `Вітаю, ${name}!\n\nВашу онлайн-зустріч заброньовано на ${meetingTime}.\n\n${note ? `Ваша примітка: ${note}\n\n` : ''}Дякую!`
-        : `Hello ${name},\n\nYour online meeting is booked for ${meetingTime}.\n\n${note ? `Your note: ${note}\n\n` : ''}Thank you!`,
+        ? `Вітаю, ${name}!\n\nВашу онлайн-зустріч заброньовано на ${meetingTime}.\n\nПосилання на Google Meet: ${meetUrl}\n\nПідтвердите участь у зустрічі? Відкрийте посилання, щоб підтвердити або відмовитися: ${responseUrl}\n\n${note ? `Ваша примітка: ${note}\n\n` : ''}Дякую!`
+        : `Hello ${name},\n\nYour online meeting is booked for ${meetingTime}.\n\nGoogle Meet link: ${meetUrl}\n\nWill you attend the meeting? Open this link to confirm or decline: ${responseUrl}\n\n${note ? `Your note: ${note}\n\n` : ''}Thank you!`,
     }),
   ]);
 };

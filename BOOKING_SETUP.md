@@ -12,11 +12,11 @@ BOOKING_WEEKLY_HOURS={"1":["10:00","16:00"],"2":["10:00","16:00"],"3":["10:00","
 
 The public booking flow is on the portfolio's Contacts page and homepage. After signing in, the owner can view or cancel appointments at `/bookings/manage`.
 
-Bookings are stored in MongoDB. When SMTP is configured, the API sends a notification to `CONTACT_TO_EMAIL` and a confirmation to the visitor. If email delivery is unavailable, the booking is still stored and the API reports `notificationSent: false`; check the API logs and protected booking manager.
+Bookings are stored in MongoDB. Each booking gets a unique Google Meet conference, and the visitor receives its URL by email. The email links to a page where the visitor can confirm or decline attendance; their response is recorded in MongoDB and shown in the protected booking manager. The response link is single-use and expires when the meeting starts. When SMTP is configured, the API sends a notification to `CONTACT_TO_EMAIL` and a confirmation to the visitor. If email delivery is unavailable, the booking is still stored and the API reports `notificationSent: false`; check the API logs and protected booking manager.
 
 ## Google Calendar sync
 
-When both `GOOGLE_CALENDAR_ID` and `GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` are configured, the API checks Google Calendar free/busy before returning available slots, creates a calendar event for each booking, and deletes that event when the booking is cancelled. Calendar events contain only the generic title `Portfolio meeting` and do not copy the visitor's name, email, or note. If Calendar is configured but unavailable, the API does not offer unchecked slots or confirm a booking without its calendar event.
+When both `GOOGLE_CALENDAR_ID` and `GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` are configured, the API checks Google Calendar free/busy before returning available slots, creates a calendar event and a unique Google Meet conference for each booking, and deletes that event when the booking is cancelled. Calendar events contain only the generic title `Portfolio meeting` and do not copy the visitor's name, email, or note. The API waits for Google's asynchronous conference generation to finish before confirming a booking. If Calendar is configured but unavailable, or Google Meet cannot be generated, the API does not offer unchecked slots or confirm a booking without the calendar event and Meet URL.
 
 To connect a Google Calendar:
 
@@ -25,5 +25,6 @@ To connect a Google Calendar:
 3. In Google Calendar, share the target calendar with the service account's email address and grant **Make changes to events**.
 4. In Hostinger's Node.js app environment settings, set `GOOGLE_CALENDAR_ID` to `artemliradev@gmail.com` (or the calendar ID shown in Google Calendar settings) and set `GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` to the complete JSON key contents.
 5. For email, set `CONTACT_TO_EMAIL` to the desired inbox. The configured Hostinger mailbox remains the sender; set `SMTP_USER` and `MAIL_FROM` to that mailbox and add its password as `SMTP_PASS` directly in Hostinger.
+6. Set `PUBLIC_SITE_URL` to the public portfolio origin used in confirmation links. It defaults to `https://artemlira.com`.
 
 Calendar integration uses `calendar.events.freebusy` for availability and `calendar.events` for creating and deleting events on the calendar shared with the service account. Although Google's write scope can access event details on calendars available to that account, this integration only calls the free/busy endpoint and writes generic portfolio meeting events; it never lists or reads event details. Keep the service account shared only on the calendar used for bookings.
