@@ -165,6 +165,7 @@ Expected response:
 GET    /bookings/config
 GET    /bookings/availability?date=YYYY-MM-DD
 POST   /bookings
+POST   /bookings/respond         (public, confirmation token required)
 GET    /bookings                 (authenticated)
 DELETE /bookings/:id             (authenticated)
 ```

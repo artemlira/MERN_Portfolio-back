@@ -122,6 +122,7 @@ app.get('/health', (_, res) => {
 app.get('/bookings/config', BookingController.getConfig);
 app.get('/bookings/availability', BookingController.getAvailability);
 app.post('/bookings', BookingController.create);
+app.post('/bookings/respond', BookingController.respondToMeeting);
 app.get('/bookings', checkAuth, BookingController.getAll);
 app.delete('/bookings/:id', checkAuth, mongoIdValidation, handleValidationErrors, BookingController.remove);
 

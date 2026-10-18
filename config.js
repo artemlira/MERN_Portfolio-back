@@ -90,6 +90,7 @@ export const SMTP_USER = process.env.SMTP_USER || '';
 export const SMTP_PASS = process.env.SMTP_PASS || '';
 export const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER;
 export const CONTACT_TO_EMAIL = process.env.CONTACT_TO_EMAIL || '';
+export const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://artemlira.com').replace(/\/$/, '');
 export const GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON = process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON || '';
 export const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || '';
 

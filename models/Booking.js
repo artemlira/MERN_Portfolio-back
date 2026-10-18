@@ -9,6 +9,10 @@ const BookingSchema = new mongoose.Schema(
     endAt: { type: Date, required: true },
     timezone: { type: String, required: true },
     googleCalendarEventId: { type: String, default: null },
+    meetUrl: { type: String, default: '' },
+    confirmationTokenHash: { type: String, select: false },
+    meetingResponse: { type: String, enum: ['pending', 'confirmed', 'declined'], default: 'pending' },
+    meetingRespondedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

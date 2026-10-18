@@ -1,4 +1,5 @@
 import BookingModel from '../models/Booking.js';
+import { createHash, randomBytes } from 'node:crypto';
 import { isEmailConfigured, sendBookingNotifications } from '../utils/email.js';
 import {
   createCalendarBooking,
@@ -185,6 +186,8 @@ export const create = async (req, res) => {
     const slot = slots.find(({ startAt: availableStart }) => availableStart === startAt.toISOString());
     if (!slot) return res.status(409).json({ message: 'Цей час щойно став недоступним. Оберіть інший.' });
 
+    const confirmationToken = randomBytes(32).toString('base64url');
+    const confirmationTokenHash = createHash('sha256').update(confirmationToken).digest('hex');
     const booking = await BookingModel.create({
       name,
       email,
@@ -192,13 +195,20 @@ export const create = async (req, res) => {
       startAt,
       endAt: new Date(slot.endAt),
       timezone,
+      confirmationTokenHash,
     });
     let calendarEventId = null;
+    let meetUrl = '';
     try {
       if (isGoogleCalendarConfigured()) {
-        calendarEventId = await createCalendarBooking({ startAt, endAt: new Date(slot.endAt), timezone });
+        const calendarBooking = await createCalendarBooking({ startAt, endAt: new Date(slot.endAt), timezone });
+        calendarEventId = calendarBooking.eventId;
+        meetUrl = calendarBooking.meetUrl;
         booking.googleCalendarEventId = calendarEventId;
+        booking.meetUrl = meetUrl;
         await booking.save();
+      } else {
+        throw new Error('Google Calendar integration is required to generate a meeting link');
       }
     } catch (calendarError) {
       if (calendarEventId) {
@@ -219,7 +229,7 @@ export const create = async (req, res) => {
     let notificationSent = false;
     if (isEmailConfigured()) {
       try {
-        await sendBookingNotifications({ name, email, note, startAt, timezone });
+        await sendBookingNotifications({ name, email, note, startAt, timezone, locale: req.body.locale, meetUrl, responseToken: confirmationToken });
         notificationSent = true;
       } catch (notificationError) {
         console.error('Booking email delivery failed', notificationError);
@@ -230,12 +240,38 @@ export const create = async (req, res) => {
       startAt: booking.startAt,
       endAt: booking.endAt,
       timezone,
+      meetUrl,
       notificationSent,
     });
   } catch (error) {
     if (error?.code === 11000) return res.status(409).json({ message: 'Цей час щойно забронювали. Оберіть інший.' });
     console.error('Booking creation failed', error);
     res.status(500).json({ message: 'Не вдалося створити бронювання.' });
+  }
+};
+
+export const respondToMeeting = async (req, res) => {
+  const token = typeof req.body.token === 'string' ? req.body.token : '';
+  const response = req.body.response;
+  if (!/^[A-Za-z0-9_-]{40,60}$/.test(token) || !['confirmed', 'declined'].includes(response)) {
+    return res.status(400).json({ code: 'INVALID_RESPONSE' });
+  }
+
+  try {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const booking = await BookingModel.findOne({ confirmationTokenHash: tokenHash }).select('+confirmationTokenHash');
+    if (!booking || !booking.meetUrl) return res.status(404).json({ code: 'INVALID_LINK' });
+    if (booking.startAt <= new Date()) return res.status(410).json({ code: 'RESPONSE_EXPIRED' });
+    if (booking.meetingResponse !== 'pending') {
+      return res.json({ response: booking.meetingResponse });
+    }
+    booking.meetingResponse = response;
+    booking.meetingRespondedAt = new Date();
+    await booking.save();
+    return res.json({ response: booking.meetingResponse });
+  } catch (error) {
+    console.error('Meeting response update failed', error);
+    return res.status(500).json({ code: 'RESPONSE_FAILED' });
   }
 };
 
