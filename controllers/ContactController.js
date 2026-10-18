@@ -1,4 +1,24 @@
 import ContactModel from '../models/Contact.js';
+import { isEmailConfigured, sendContactMessage } from '../utils/email.js';
+
+export const submit = async (req, res) => {
+  if (!isEmailConfigured()) {
+    return res.status(503).json({ message: 'Форма тимчасово недоступна. Спробуйте пізніше.' });
+  }
+
+  try {
+    await sendContactMessage({
+      name: req.body.name.trim(),
+      email: req.body.email.trim(),
+      title: req.body.title.trim(),
+      message: req.body.message.trim(),
+    });
+    return res.status(202).json({ message: 'Повідомлення надіслано.' });
+  } catch (error) {
+    console.error('Contact email delivery failed', error);
+    return res.status(502).json({ message: 'Не вдалося надіслати повідомлення. Спробуйте пізніше.' });
+  }
+};
 
 export const getAll = async (req, res) => {
   try {

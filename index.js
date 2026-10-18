@@ -9,6 +9,7 @@ import {
   skillCreateValidation,
   mediaCreateValidation,
   contactCreateValidation,
+  contactSubmissionValidation,
   factCreateValidation,
   projectCreateValidation,
   smallProjectCreateValidation,
@@ -19,6 +20,7 @@ import {
   SkillController,
   MediaController,
   ContactController,
+  BookingController,
   FactController,
   ProjectController,
   SmallProjectController,
@@ -75,6 +77,14 @@ const writeLimiter = rateLimit({
   message: { message: 'Забагато запитів. Спробуйте пізніше.' },
 });
 
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Забагато повідомлень. Спробуйте пізніше.' },
+});
+
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(
@@ -91,7 +101,8 @@ app.set('view engine', 'ejs');
 
 connectToDatabase().catch((err) => console.error('MongoDB error', err));
 
-app.use(async (_, res, next) => {
+app.use(async (req, res, next) => {
+  if (req.path === '/health' || req.path === '/contact') return next();
   try {
     await connectToDatabase();
     next();
@@ -107,6 +118,12 @@ app.get('/health', (_, res) => {
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
   });
 });
+
+app.get('/bookings/config', BookingController.getConfig);
+app.get('/bookings/availability', BookingController.getAvailability);
+app.post('/bookings', BookingController.create);
+app.get('/bookings', checkAuth, BookingController.getAll);
+app.delete('/bookings/:id', checkAuth, mongoIdValidation, handleValidationErrors, BookingController.remove);
 
 app.post('/auth/login', authLimiter, loginValidation, handleValidationErrors, UserController.login);
 app.post(
@@ -157,6 +174,7 @@ app.patch(
 );
 
 app.get('/contacts', ContactController.getAll);
+app.post('/contact', contactLimiter, contactSubmissionValidation, handleValidationErrors, ContactController.submit);
 app.post(
   '/contacts',
   checkAuth,
