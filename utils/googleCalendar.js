@@ -81,20 +81,29 @@ export const createCalendarBooking = async ({ startAt, endAt, timezone }) => {
 
   if (!insertedEvent.id) throw new Error('Google Calendar did not return an event ID');
   let event = insertedEvent;
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find(({ entryPointType }) => entryPointType === 'video')?.uri;
-    if (meetUrl) return { eventId: event.id, meetUrl };
-    if (event.conferenceData?.createRequest?.status?.statusCode === 'failure') break;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    const { data } = await calendar.events.get({ calendarId: GOOGLE_CALENDAR_ID, eventId: event.id });
-    event = data;
-  }
+  const cleanupInsertedEvent = async () => {
+    try {
+      await calendar.events.delete({ calendarId: GOOGLE_CALENDAR_ID, eventId: insertedEvent.id, sendUpdates: 'none' });
+    } catch (error) {
+      console.error('Google Calendar cleanup failed after Meet generation error', error);
+    }
+  };
 
   try {
-    await calendar.events.delete({ calendarId: GOOGLE_CALENDAR_ID, eventId: insertedEvent.id, sendUpdates: 'none' });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find(({ entryPointType }) => entryPointType === 'video')?.uri;
+      if (meetUrl) return { eventId: event.id, meetUrl };
+      if (event.conferenceData?.createRequest?.status?.statusCode === 'failure') break;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { data } = await calendar.events.get({ calendarId: GOOGLE_CALENDAR_ID, eventId: event.id });
+      event = data;
+    }
   } catch (error) {
-    console.error('Google Calendar cleanup failed after Meet generation error', error);
+    await cleanupInsertedEvent();
+    throw error;
   }
+
+  await cleanupInsertedEvent();
   throw new Error('Google Calendar did not return a Google Meet link');
 };
 
