@@ -53,14 +53,19 @@ export const sendBookingNotifications = async ({ name, email, note, startAt, tim
   const emailLocale = getEmailLocale(locale);
   const isUkrainian = emailLocale === 'uk-UA';
   const meetingTime = new Intl.DateTimeFormat(emailLocale, {
-    dateStyle: 'full',
-    timeStyle: 'short',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'long',
     timeZone: timezone,
   }).format(startAt);
   const details = [
     `${isUkrainian ? 'Ім’я' : 'Name'}: ${name}`,
     `Email: ${email}`,
-    `${isUkrainian ? 'Зустріч' : 'Meeting'}: ${meetingTime} (${timezone})`,
+    `${isUkrainian ? 'Зустріч' : 'Meeting'}: ${meetingTime}`,
     note ? `${isUkrainian ? 'Примітка' : 'Note'}: ${note}` : '',
   ].filter(Boolean).join('\n');
   const mailer = getTransporter();
@@ -78,8 +83,8 @@ export const sendBookingNotifications = async ({ name, email, note, startAt, tim
       to: email,
       subject: isUkrainian ? 'Вашу зустріч заброньовано' : 'Your portfolio meeting is booked',
       text: isUkrainian
-        ? `Вітаю, ${name}!\n\nВашу онлайн-зустріч заброньовано на ${meetingTime} (${timezone}).\n\n${note ? `Ваша примітка: ${note}\n\n` : ''}Дякую!`
-        : `Hello ${name},\n\nYour online meeting is booked for ${meetingTime} (${timezone}).\n\n${note ? `Your note: ${note}\n\n` : ''}Thank you!`,
+        ? `Вітаю, ${name}!\n\nВашу онлайн-зустріч заброньовано на ${meetingTime}.\n\n${note ? `Ваша примітка: ${note}\n\n` : ''}Дякую!`
+        : `Hello ${name},\n\nYour online meeting is booked for ${meetingTime}.\n\n${note ? `Your note: ${note}\n\n` : ''}Thank you!`,
     }),
   ]);
 };
