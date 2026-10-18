@@ -5,11 +5,12 @@
   "main": "index.js",
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node hostinger.js",
+    "dev": "nodemon index.js",
+    "check": "node --check index.js && node --check hostinger.js && node --check config.js && node --check validations.js && node --check controllers/BookingController.js && node --check controllers/ContactController.js && node --check controllers/index.js && node --check models/Booking.js && node --check utils/email.js"
   },
   "author": "",
   "license": "ISC",
@@ -22,7 +23,8 @@
     "express-validator": "^6.15.0",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^7.0.3"
+    "mongoose": "^7.0.3",
+    "nodemailer": "^10.1.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

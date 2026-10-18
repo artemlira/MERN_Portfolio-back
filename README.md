@@ -16,7 +16,7 @@ Frontend repository: [artemlira/React-Portfolio_multipage](https://github.com/ar
 
 This service is an Express and MongoDB API used by a React portfolio frontend. Public endpoints return portfolio content, while authenticated routes allow the portfolio owner to create, update, and delete content from the admin UI.
 
-The API is configured for Vercel serverless deployment and local development.
+The API supports Vercel serverless deployment and a persistent Node.js process on Hostinger.
 
 ## Features
 
@@ -30,6 +30,8 @@ The API is configured for Vercel serverless deployment and local development.
 - CORS allowlist for the production frontend and local development
 - Security headers via Helmet
 - Rate limiting for authentication and write requests
+- Self-managed meeting bookings with configurable weekly availability
+- SMTP email delivery for contact form submissions and booking notifications
 - Health endpoint for deployment checks
 - Environment-based configuration
 
@@ -54,6 +56,7 @@ The API is configured for Vercel serverless deployment and local development.
 server/
   config.js             Environment-based application config
   index.js              Express app, middleware, routes, Vercel export
+  hostinger.js          Persistent HTTP server entry point for Hostinger
   controllers/          Route handlers
   models/               Mongoose schemas
   utils/                Auth and validation helpers
@@ -78,6 +81,13 @@ JWT_SECRET=replace-with-a-long-random-secret
 JWT_EXPIRES_IN=30d
 CLIENT_ORIGINS=https://artem-lira.netlify.app,http://localhost:5173,http://127.0.0.1:5173
 PORT=4444
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your-mailbox@your-domain.com
+SMTP_PASS=your-mailbox-password
+MAIL_FROM=your-mailbox@your-domain.com
+CONTACT_TO_EMAIL=your-email@example.com
 ```
 
 `MONGO_URI` must include the database name. For this project the production database is `portfolio`:
@@ -122,6 +132,16 @@ Run the production entry locally:
 npm start
 ```
 
+`npm start` runs the persistent Hostinger server. Vercel continues to use `index.js` through `vercel.json`.
+
+## Hostinger Deployment
+
+Connect this repository to Hostinger after the changes are merged into `master`. Use the repository root as the app directory, `npm install` as the install command, and `npm start` as the start command. No build command is needed for the API. Hostinger can redeploy automatically after new commits reach the connected branch.
+
+Set `MONGO_URI`, `JWT_SECRET`, and `CLIENT_ORIGINS` in Hostinger's environment variables. Add SMTP variables after creating a mailbox and configuring the domain's mail DNS records. Keep credentials out of Git; `.env.example` contains placeholders.
+
+Hostinger Email's documented SMTP defaults are `smtp.hostinger.com`, port `465`, SSL. Port `587` can be used with STARTTLS by setting `SMTP_SECURE=false`. Confirm the exact values under Emails → Manage → Connect Apps & Devices in hPanel.
+
 ## API Endpoints
 
 ### Health
@@ -138,6 +158,18 @@ Expected response:
   "database": "connected"
 }
 ```
+
+### Booking
+
+```text
+GET    /bookings/config
+GET    /bookings/availability?date=YYYY-MM-DD
+POST   /bookings
+GET    /bookings                 (authenticated)
+DELETE /bookings/:id             (authenticated)
+```
+
+See [BOOKING_SETUP.md](./BOOKING_SETUP.md) for schedule environment variables and local setup.
 
 ### Authentication
 

@@ -38,6 +38,26 @@ export const contactCreateValidation = [
   body('icon', 'Неверная ссылка на контакт').isString(),
 ];
 
+export const contactSubmissionValidation = [
+  body('name', 'Перевірте ім’я.')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .matches(/^[^\r\n]+$/),
+  body('email', 'Перевірте адресу електронної пошти.')
+    .trim()
+    .isEmail()
+    .isLength({ max: 254 })
+    .normalizeEmail(),
+  body('title', 'Вкажіть тему повідомлення.')
+    .trim()
+    .isLength({ min: 2, max: 150 })
+    .matches(/^[^\r\n]+$/),
+  body('message', 'Повідомлення має містити від 10 до 5000 символів.')
+    .trim()
+    .isLength({ min: 10, max: 5000 })
+    .isString(),
+];
+
 export const factCreateValidation = [
   body('valueUA', 'Введите массив фактов').trim().isString(),
   body('valueEN', 'Введите массив фактов').trim().isString(),
