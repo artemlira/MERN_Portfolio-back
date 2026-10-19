@@ -167,6 +167,10 @@ export const getAvailability = async (req, res) => {
 };
 
 export const create = async (req, res) => {
+  if (typeof req.body.website === 'string' && req.body.website.trim()) {
+    return res.status(400).json({ message: 'Не вдалося створити бронювання.' });
+  }
+
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const note = typeof req.body.note === 'string' ? req.body.note.trim() : '';
