@@ -70,9 +70,10 @@ The paired [React/Vite frontend](https://github.com/artemlira/React-Portfolio_mu
 ```text
 GET  /health
 POST /auth/login
-POST /auth/register
 GET  /auth/me                 Authorization: Bearer <JWT>
 ```
+
+Public registration is disabled. Only an existing administrator account can sign in.
 
 ### Portfolio reads and management
 
@@ -202,7 +203,7 @@ The repository also contains a `vercel.json` compatibility entry point, but the 
 ## Security and production considerations
 
 - Protected writes require a valid JWT and the API also validates the request body; client-side route guards alone are not trusted.
-- The current implementation has public `/auth/register` and no role-based authorization. Restrict registration or implement an administrator role before allowing general public sign-ups; otherwise any new account may be able to call protected content-management endpoints.
+- Public registration is disabled; `POST /auth/register` returns `404`. Keep administrator accounts provisioned outside the public API. The current JWT model has no role-based authorization, so do not add public account creation without an explicit administrator policy.
 - Set a unique, high-entropy `JWT_SECRET` in production. Changing it invalidates all active tokens.
 - Keep the service account shared only with the booking calendar, not the personal calendar. Rotate/revoke a key if it has ever been exposed.
 - `CLIENT_ORIGINS` should contain only the deployed portfolio origins and explicitly needed local development origins.

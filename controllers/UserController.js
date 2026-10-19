@@ -14,44 +14,6 @@ const signToken = (userId) =>
     },
   );
 
-export const register = async (req, res) => {
-  try {
-    const password = req.body.password;
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-
-    const doc = new UserModel({
-      email: req.body.email,
-      fullName: req.body.fullName,
-      avatarUrl: req.body.avatarUrl,
-      passwordHash: hash,
-    });
-
-    const user = await doc.save();
-
-    const token = signToken(user._id);
-
-    const { passwordHash, ...userData } = user._doc;
-
-    res.json({
-      ...userData,
-      token
-    });
-  } catch (err) {
-    console.error(err);
-
-    if (err.code === 11000) {
-      return res.status(409).json({
-        message: 'Користувач з таким email вже існує',
-      });
-    }
-
-    res.status(500).json({
-      message: 'Не удалось зарегистрироваться'
-    });
-  }
-};
-
 export const login = async (req, res) => {
   try {
     const user = await UserModel.findOne({ email: req.body.email }).select('+passwordHash');

@@ -4,7 +4,6 @@ import mongoose from 'mongoose';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import {
-  registerValidation,
   loginValidation,
   skillCreateValidation,
   mediaCreateValidation,
@@ -127,13 +126,7 @@ app.get('/bookings', checkAuth, BookingController.getAll);
 app.delete('/bookings/:id', checkAuth, mongoIdValidation, handleValidationErrors, BookingController.remove);
 
 app.post('/auth/login', authLimiter, loginValidation, handleValidationErrors, UserController.login);
-app.post(
-  '/auth/register',
-  authLimiter,
-  registerValidation,
-  handleValidationErrors,
-  UserController.register,
-);
+app.post('/auth/register', (_req, res) => res.status(404).json({ message: 'Route not found.' }));
 app.get('/auth/me', checkAuth, UserController.getMe);
 
 app.get('/skills', SkillController.getAll);
