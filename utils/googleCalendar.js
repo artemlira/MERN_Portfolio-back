@@ -2,18 +2,18 @@ import { google } from 'googleapis';
 import { randomUUID } from 'node:crypto';
 import {
   GOOGLE_CALENDAR_ID,
-  GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON,
+  GOOGLE_CALENDAR_OAUTH_CLIENT_ID,
+  GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET,
+  GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN,
 } from '../config.js';
-
-const CALENDAR_SCOPES = [
-  'https://www.googleapis.com/auth/calendar.events.freebusy',
-  'https://www.googleapis.com/auth/calendar.events',
-];
 
 let calendarClient;
 
 export const isGoogleCalendarConfigured = () => Boolean(
-  GOOGLE_CALENDAR_ID && GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON,
+  GOOGLE_CALENDAR_ID
+    && GOOGLE_CALENDAR_OAUTH_CLIENT_ID
+    && GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET
+    && GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN,
 );
 
 const getCalendarClient = () => {
@@ -22,14 +22,11 @@ const getCalendarClient = () => {
   }
 
   if (!calendarClient) {
-    let credentials;
-    try {
-      credentials = JSON.parse(GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON);
-    } catch {
-      throw new Error('GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON must contain valid JSON');
-    }
-
-    const auth = new google.auth.GoogleAuth({ credentials, scopes: CALENDAR_SCOPES });
+    const auth = new google.auth.OAuth2(
+      GOOGLE_CALENDAR_OAUTH_CLIENT_ID,
+      GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET,
+    );
+    auth.setCredentials({ refresh_token: GOOGLE_CALENDAR_OAUTH_REFRESH_TOKEN });
     calendarClient = google.calendar({ version: 'v3', auth });
   }
 

@@ -2,6 +2,10 @@ import ContactModel from '../models/Contact.js';
 import { isEmailConfigured, sendContactMessage } from '../utils/email.js';
 
 export const submit = async (req, res) => {
+  if (typeof req.body.website === 'string' && req.body.website.trim()) {
+    return res.status(202).json({ message: 'Повідомлення надіслано.' });
+  }
+
   if (!isEmailConfigured()) {
     return res.status(503).json({ message: 'Форма тимчасово недоступна. Спробуйте пізніше.' });
   }
