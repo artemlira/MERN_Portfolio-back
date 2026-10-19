@@ -9,15 +9,6 @@ export const loginValidation = [
   body('password', 'Пароль должен быть не менее 5 символов').isLength({ min: 5 }),
 ];
 
-export const registerValidation = [
-  body('email', 'Неверный формат почты').trim().isEmail().normalizeEmail(),
-  body('password', 'Пароль должен быть не менее 5 символов').isLength({ min: 5 }),
-  body('fullName', 'Укажите имя').trim().isLength({ min: 3 }),
-  body('avatarUrl', 'Неверная ссылка на аватарку')
-    .optional({ checkFalsy: true })
-    .isURL({ protocols: ['http', 'https'], require_protocol: true }),
-];
-
 export const skillCreateValidation = [
   body('categoryEN', 'Enter a category').trim().isLength({ min: 3 }).isString(),
   body('categoryUA', 'Введите категорию').trim().isLength({ min: 3 }).isString(),
